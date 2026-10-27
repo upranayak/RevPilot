@@ -5,7 +5,7 @@ plans, calls tools (read-only SQL, semantic product search, demand forecasts, pr
 own errors and answers with numbers you can trace. A multi-agent workflow reviews pricing decisions with
 counterfactual "what if we change the price" simulations.
 
-**Live app:** _(link added after deployment)_
+**Live app:** https://revpilot.streamlit.app (free tier: the first visit after idle takes ~30 s to wake up)
 
 Data: [UCI Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii) (CC BY 4.0):
 1,021,128 transaction lines, 46,921 invoices, 5,875 customers and 4,721 products from a UK online gift

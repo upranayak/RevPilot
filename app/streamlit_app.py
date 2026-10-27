@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import db  # noqa: E402
 import tools  # noqa: E402
 from config import ARTIFACTS, COHORTS, CUSTOMERS, ELASTICITY, FORECASTS, PRODUCTS, WEEKLY  # noqa: E402
+import llm  # noqa: E402
 from llm import api_key  # noqa: E402
 from pricing import simulate  # noqa: E402
 
@@ -79,7 +80,8 @@ with tab_agent:
     st.markdown("Ask a business question. The agent plans, calls tools (read-only SQL, product search, "
                 "forecast, price simulation), checks errors, and answers with numbers.")
     if not has_key:
-        st.info("The agent needs a Groq API key (GROQ_API_KEY). Dashboards work without it.")
+        st.info("The agent needs a Groq API key (GROQ_API_KEY). Dashboards work without it."
+                + (f" Reason: {llm.key_error}." if llm.key_error else ""))
     examples = ["Which country outside the UK generated the most revenue in 2011?",
                 "How many units of the white hanging heart tea light holder were sold, and what is its 8-week forecast?",
                 "If we cut the regency cake stand price by 10%, what happens to 8-week revenue?",
@@ -201,8 +203,11 @@ with tab_eval:
         c4.metric("Latency p50 / p95", f"{a['latency_p50_s']:.1f}s / {a['latency_p95_s']:.1f}s")
         st.dataframe(pd.DataFrame({"accuracy": a["accuracy_by_category"]}).T, use_container_width=True)
         with st.expander("Per-question results"):
-            st.dataframe(pd.DataFrame(a["details"])[["id", "question", "gold", "answer", "correct", "tools_used",
-                                                     "routing_f1", "seconds"]], hide_index=True, use_container_width=True)
+            det = pd.DataFrame(a["details"])[["id", "question", "gold", "answer", "correct", "tools_used",
+                                              "routing_f1", "seconds"]]
+            det["gold"] = det["gold"].astype(str)  # mixed text/number answers break Arrow serialization
+            det["tools_used"] = det["tools_used"].map(", ".join)
+            st.dataframe(det, hide_index=True, use_container_width=True)
     if "retrieval" in ev:
         rr = ev["retrieval"]
         st.markdown(f"**Product retrieval** on {rr['queries']} noisy queries (word dropped, shuffled, typo): "

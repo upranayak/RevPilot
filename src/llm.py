@@ -12,21 +12,22 @@ class LLMError(RuntimeError):
     pass
 
 
-def _secrets_available() -> bool:
-    """True on Streamlit Cloud (apps run from /mount/src) or when a secrets.toml exists.
-    Checked first so st.secrets never shows its 'No secrets found' box locally."""
-    candidates = [Path.home() / ".streamlit" / "secrets.toml", Path.cwd() / ".streamlit" / "secrets.toml"]
-    return Path("/mount/src").exists() or any(p.exists() for p in candidates)
+key_error = ""  # why the key could not be read (error type only, never the value)
 
 
 def api_key() -> str:
-    key = os.getenv("GROQ_API_KEY", "").strip()  # locally from .env (loaded in config)
-    if not key and _secrets_available():
-        try:
-            import streamlit as st
-            key = str(st.secrets.get("GROQ_API_KEY", "")).strip()
-        except Exception:
-            key = ""
+    """Locally the key comes from .env (loaded in config), so st.secrets is never touched there.
+    On Streamlit Cloud it comes from the app's Secrets."""
+    global key_error
+    key = os.getenv("GROQ_API_KEY", "").strip()
+    if key:
+        return key
+    try:
+        import streamlit as st
+        key = str(st.secrets.get("GROQ_API_KEY", "")).strip()
+        key_error = "" if key else "GROQ_API_KEY not found in secrets"
+    except Exception as e:
+        key, key_error = "", type(e).__name__
     return key
 
 

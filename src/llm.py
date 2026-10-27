@@ -1,6 +1,7 @@
 """Minimal Groq client (OpenAI-compatible chat completions with tool calling)."""
 import os
 import time
+from pathlib import Path
 
 import httpx
 
@@ -11,10 +12,22 @@ class LLMError(RuntimeError):
     pass
 
 
+def _secrets_available() -> bool:
+    """True on Streamlit Cloud (apps run from /mount/src) or when a secrets.toml exists.
+    Checked first so st.secrets never shows its 'No secrets found' box locally."""
+    candidates = [Path.home() / ".streamlit" / "secrets.toml", Path.cwd() / ".streamlit" / "secrets.toml"]
+    return Path("/mount/src").exists() or any(p.exists() for p in candidates)
+
+
 def api_key() -> str:
-    # Locally from .env (loaded in config); on Streamlit Cloud, root-level secrets are
-    # exposed as environment variables too.
-    return os.getenv("GROQ_API_KEY", "").strip()
+    key = os.getenv("GROQ_API_KEY", "").strip()  # locally from .env (loaded in config)
+    if not key and _secrets_available():
+        try:
+            import streamlit as st
+            key = str(st.secrets.get("GROQ_API_KEY", "")).strip()
+        except Exception:
+            key = ""
+    return key
 
 
 def chat(messages: list[dict], model: str, tools: list[dict] | None = None, temperature: float = 0.0,

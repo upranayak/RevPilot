@@ -110,12 +110,20 @@ with tab_agent:
                 "How many units of the best-selling blue kurta set were sold, and what is its 14-day forecast?",
                 "If we cut the price of the best-selling blue dress by 10%, what happens to 14-day revenue?",
                 "Which Metro hub city has the highest cancellation rate?"]
-    choice = st.selectbox("Example questions", ["(type your own)"] + examples)
-    q = st.text_input("Question", value="" if choice == "(type your own)" else choice)
-    if st.button("Ask", type="primary", disabled=not (has_key and q.strip())):
+    # A form keeps widget parameters fixed between reruns: a widget whose value/disabled state changes gets a
+    # new ID, which made Streamlit jump back to the first tab when Enter was pressed. In a form, Enter submits.
+    with st.form("ask"):
+        choice = st.selectbox("Example questions", ["(type your own)"] + examples)
+        typed = st.text_input("Question", placeholder="Type a question, or pick an example above and press Ask")
+        submitted = st.form_submit_button("Ask", type="primary", disabled=not has_key)
+    q = typed.strip() or ("" if choice == "(type your own)" else choice)
+    if submitted and not q:
+        st.warning("Type a question or pick an example.")
+    if submitted and q:
         import agent
         with st.spinner("Thinking with tools..."):
-            r = agent.run(q.strip())
+            r = agent.run(q)
+        st.markdown(f"**Question:** {q}")
         st.markdown(f"**Answer:** {r.answer}")
         st.caption(f"{r.seconds:.1f}s · {r.llm_calls} LLM calls · {len(r.steps)} tool calls")
         for i, s in enumerate(r.steps, 1):

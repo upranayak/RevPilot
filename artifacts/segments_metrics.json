@@ -1,14 +1,15 @@
 {
-  "n_customers": 5852,
+  "n_cities": 339,
+  "min_orders_per_city": 30,
+  "order_coverage": 0.808,
   "embedding_dims": 16,
   "n_segments": 5,
-  "silhouette": 0.11,
-  "avg_month3_retention": 0.217,
+  "silhouette": 0.112,
   "segments": {
-    "Lost": 1663,
-    "At risk": 1306,
-    "Loyal": 1232,
-    "Occasional": 1147,
-    "Champions": 504
+    "Steady tier-2/3 markets": 121,
+    "High-cancellation markets": 84,
+    "Metro hubs": 65,
+    "High-return markets": 61,
+    "B2B buyers": 8
   }
 }

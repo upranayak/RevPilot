@@ -1,6 +1,7 @@
 {
-  "products_with_estimates": 91,
-  "reliable_estimates": 56,
-  "median_reliable_elasticity": -2.03,
-  "elastic_share": 0.86
+  "styles_with_estimates": 79,
+  "reliable_estimates": 18,
+  "median_reliable_elasticity": -2.75,
+  "elastic_share": 0.94,
+  "positive_significant": 1
 }

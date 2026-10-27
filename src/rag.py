@@ -1,11 +1,16 @@
 """Semantic product search (the RAG retriever).
 
-Products are embedded from their description plus sales context with word + character
-TF-IDF reduced by TruncatedSVD (latent semantic indexing, 128 dims). Lightweight enough
+Styles are described by colour + type (e.g. "Navy Blue Kurta Set"). Descriptions are embedded with
+word + character TF-IDF reduced by TruncatedSVD (latent semantic indexing, 128 dims). Lightweight enough
 to run on a free cloud instance without a GPU or an embedding API.
+Because descriptions are only 1 to 4 words, a single typo in the colour can lose the match, so query
+words that are not in the catalogue vocabulary are first spell-corrected to the closest catalogue word.
+Many styles share a description, so results are grouped by description, best seller first.
 Build: python src/rag.py
 """
+import difflib
 import pickle
+import re
 
 import numpy as np
 import pandas as pd
@@ -33,10 +38,11 @@ def build() -> None:
     svd = TruncatedSVD(n_components=N_DIMS, random_state=42)
     emb = normalize(svd.fit_transform(X))
     np.savez_compressed(PRODUCT_INDEX, emb=emb.astype(np.float32),
-                        codes=products["stock_code"].to_numpy())
+                        codes=products["style"].to_numpy())
+    vocab = sorted({w for t in text for w in t.split()})
     with open(PRODUCT_INDEX.with_suffix(".pkl"), "wb") as f:
-        pickle.dump({"word": word, "char": char, "svd": svd}, f)
-    print(f"indexed {len(products):,} products, {N_DIMS} dims")
+        pickle.dump({"word": word, "char": char, "svd": svd, "vocab": vocab}, f)
+    print(f"indexed {len(products):,} styles ({text.nunique()} distinct descriptions), {N_DIMS} dims")
 
 
 class ProductIndex:
@@ -45,22 +51,36 @@ class ProductIndex:
         self.emb, self.codes = data["emb"], data["codes"]
         with open(PRODUCT_INDEX.with_suffix(".pkl"), "rb") as f:
             m = pickle.load(f)
-        self.word, self.char, self.svd = m["word"], m["char"], m["svd"]
-        self.products = pd.read_parquet(PRODUCTS).set_index("stock_code")
+        self.word, self.char, self.svd, self.vocab = m["word"], m["char"], m["svd"], m["vocab"]
+        self.products = pd.read_parquet(PRODUCTS).set_index("style")
+        self.rev = self.products.loc[self.codes, "revenue"].to_numpy()
+
+    def correct(self, query: str) -> str:
+        words = re.findall(r"[a-z]+", query.lower())
+        fixed = [w if w in self.vocab else (difflib.get_close_matches(w, self.vocab, n=1, cutoff=0.7) or [w])[0]
+                 for w in words]
+        return " ".join(fixed)
 
     def search(self, query: str, k: int = 5) -> list[dict]:
-        q = query.lower()
+        q = self.correct(query)
         X = sparse.hstack([self.word.transform([q]), self.char.transform([q])]).tocsr()
         v = normalize(self.svd.transform(X))[0]
         scores = self.emb @ v
-        top = np.argsort(-scores)[:k]
-        out = []
-        for i in top:
-            code = self.codes[i]
-            p = self.products.loc[code]
-            out.append({"stock_code": code, "description": p["description"], "score": round(float(scores[i]), 3),
-                        "revenue": round(float(p["revenue"]), 2), "units": int(p["units"]),
-                        "median_price": round(float(p["median_price"]), 2)})
+        order = np.lexsort((-self.rev, -np.round(scores, 3)))  # best score, then best seller
+        out, seen = [], {}
+        for i in order:
+            p = self.products.loc[self.codes[i]]
+            if p["description"] in seen:
+                seen[p["description"]]["matching_styles"] += 1
+                continue
+            if len(out) == k:
+                continue
+            item = {"style": self.codes[i], "description": p["description"], "category": p["category"],
+                    "score": round(float(scores[i]), 3), "revenue_inr": round(float(p["revenue"]), 2),
+                    "units": int(p["units"]), "orders": int(p["orders"]),
+                    "median_price_inr": round(float(p["median_price"]), 2), "matching_styles": 1}
+            seen[p["description"]] = item
+            out.append(item)
         return out
 
 

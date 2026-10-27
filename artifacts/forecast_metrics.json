@@ -1,17 +1,18 @@
 {
-  "products_forecast": 99,
-  "holdout_weeks": 8,
-  "horizon_weeks": 8,
-  "chosen_model": "holt_winters",
+  "styles_forecast": 100,
+  "history_days": 89,
+  "holdout_days": 14,
+  "horizon_days": 14,
+  "chosen_model": "moving_avg_7d",
   "validation_wape": {
-    "seasonal_naive": 0.77,
-    "moving_avg_4w": 0.631,
-    "holt_winters": 0.591
+    "seasonal_naive": 0.676,
+    "moving_avg_7d": 0.59,
+    "holt_winters": 0.653
   },
   "test_wape": {
-    "seasonal_naive": 0.739,
-    "moving_avg_4w": 0.618,
-    "holt_winters": 0.585
+    "seasonal_naive": 0.827,
+    "moving_avg_7d": 0.692,
+    "holt_winters": 0.708
   },
-  "test_wape_improvement_vs_seasonal_naive": 0.208
+  "test_wape_improvement_vs_seasonal_naive": 0.163
 }

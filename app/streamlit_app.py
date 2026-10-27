@@ -1,4 +1,4 @@
-"""RevPilot: autonomous e-commerce revenue optimization (Streamlit app)."""
+"""RevPilot: autonomous e-commerce revenue optimization on Amazon India sales (Streamlit app)."""
 import json
 import sys
 from pathlib import Path
@@ -14,13 +14,22 @@ sys.path.insert(0, str(ROOT / "src"))
 
 import db  # noqa: E402
 import tools  # noqa: E402
-from config import ARTIFACTS, COHORTS, CUSTOMERS, ELASTICITY, FORECASTS, PRODUCTS, WEEKLY  # noqa: E402
+from config import ARTIFACTS, CITIES, DAILY, ELASTICITY, FORECASTS, HORIZON_DAYS, PRODUCTS  # noqa: E402
 import llm  # noqa: E402
 from llm import api_key  # noqa: E402
 from pricing import simulate  # noqa: E402
 
 GOLD = "#C99700"
-st.set_page_config(page_title="RevPilot: E-Commerce Revenue Agent", page_icon="📈", layout="wide")
+st.set_page_config(page_title="RevPilot: E-Commerce Revenue Agent (India)", page_icon="📈", layout="wide")
+
+
+def inr(x: float) -> str:
+    """Indian units: crore (1e7) and lakh (1e5)."""
+    if abs(x) >= 1e7:
+        return f"₹{x / 1e7:.2f} Cr"
+    if abs(x) >= 1e5:
+        return f"₹{x / 1e5:.2f} L"
+    return f"₹{x:,.0f}"
 
 
 @st.cache_data
@@ -34,7 +43,7 @@ def metrics(name: str) -> dict:
     return json.loads(p.read_text()) if p.exists() else {}
 
 
-@st.cache_resource(show_spinner="Loading 1M transactions and the product index (first visit only)...")
+@st.cache_resource(show_spinner="Loading 129K Amazon.in order lines and the product index (first visit only)...")
 def warm() -> bool:
     db.connection()
     tools._index()
@@ -48,32 +57,47 @@ def sql(q: str) -> pd.DataFrame:
 
 warm()
 products = load(str(PRODUCTS))
+names = products.set_index("style")["description"]
 has_key = bool(api_key())
 
 st.title("RevPilot")
-st.caption("An agentic AI analyst for an online retailer: SQL + retrieval tool use, customer embeddings, "
-           "demand forecasting and multi-agent counterfactual pricing. Data: UCI Online Retail II "
-           "(1.02M transaction lines, Dec 2009 to Dec 2011, GBP).")
+st.caption("An agentic AI analyst for an Indian ethnic-wear brand on Amazon.in: SQL + retrieval tool use, city market "
+           "embeddings, demand forecasting and multi-agent counterfactual pricing. Data: Amazon India sales report "
+           "(128,969 order lines, 31 Mar to 29 Jun 2022, INR).")
 
-tab_over, tab_agent, tab_cust, tab_fc, tab_price, tab_eval = st.tabs(
-    ["Overview", "Ask the agent", "Customers", "Forecasts", "Pricing lab", "Evaluation"])
+tab_over, tab_agent, tab_mkt, tab_fc, tab_price, tab_eval = st.tabs(
+    ["Overview", "Ask the agent", "Markets", "Forecasts", "Pricing lab", "Evaluation"])
 
 # ---------------- Overview ----------------
 with tab_over:
-    k = sql("SELECT SUM(revenue) rev, COUNT(DISTINCT invoice) orders, COUNT(DISTINCT customer_id) customers, "
-            "COUNT(*) lines FROM transactions WHERE NOT is_cancellation").iloc[0]
+    k = sql("SELECT SUM(revenue) rev, COUNT(DISTINCT order_id) orders, "
+            "SUM(revenue) / COUNT(DISTINCT CASE WHEN NOT is_cancelled THEN order_id END) aov, "
+            "AVG(CASE WHEN is_cancelled THEN 1.0 ELSE 0 END) cancel FROM transactions").iloc[0]
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Net revenue", f"£{k['rev'] / 1e6:.2f}M")
+    c1.metric("Net revenue", inr(k["rev"]))
     c2.metric("Orders", f"{int(k['orders']):,}")
-    c3.metric("Customers", f"{int(k['customers']):,}")
-    c4.metric("Transaction lines", f"{k['lines'] / 1e6:.2f}M")
-    monthly = sql("SELECT date_trunc('month', invoice_date) AS month, SUM(revenue) AS revenue FROM transactions "
-                  "WHERE NOT is_cancellation GROUP BY 1 ORDER BY 1")
-    fig = px.bar(monthly, x="month", y="revenue", title="Monthly net revenue (GBP)", color_discrete_sequence=[GOLD])
+    c3.metric("Average order value", f"₹{k['aov']:,.0f}")
+    c4.metric("Cancelled lines", f"{k['cancel']:.1%}")
+    daily = sql("SELECT order_date AS day, SUM(revenue) AS revenue FROM transactions GROUP BY 1 ORDER BY 1")
+    fig = px.line(daily, x="day", y="revenue", title="Daily net revenue (INR)", color_discrete_sequence=[GOLD])
     st.plotly_chart(fig, use_container_width=True)
-    st.subheader("Top products")
-    st.dataframe(products.head(15)[["stock_code", "description", "units", "revenue", "median_price"]],
-                 hide_index=True, use_container_width=True)
+    left, right = st.columns(2)
+    with left:
+        states = sql("SELECT state, SUM(revenue) AS revenue FROM transactions WHERE state IS NOT NULL "
+                     "GROUP BY 1 ORDER BY 2 DESC LIMIT 12")
+        fig = px.bar(states, x="revenue", y="state", orientation="h", title="Top states by net revenue (INR)",
+                     color_discrete_sequence=[GOLD])
+        fig.update_layout(yaxis=dict(autorange="reversed"))
+        st.plotly_chart(fig, use_container_width=True)
+    with right:
+        cats = sql("SELECT category, SUM(revenue) AS revenue FROM transactions GROUP BY 1 ORDER BY 2 DESC")
+        fig = px.bar(cats, x="category", y="revenue", title="Net revenue by category (INR)",
+                     color_discrete_sequence=[GOLD])
+        st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Top styles")
+    top = products.head(15)[["style", "description", "category", "units", "revenue", "median_price"]].rename(
+        columns={"revenue": "revenue (₹)", "median_price": "median price (₹)"})
+    st.dataframe(top, hide_index=True, use_container_width=True)
 
 # ---------------- Agent ----------------
 with tab_agent:
@@ -82,10 +106,10 @@ with tab_agent:
     if not has_key:
         st.info("The agent needs a Groq API key (GROQ_API_KEY). Dashboards work without it."
                 + (f" Reason: {llm.key_error}." if llm.key_error else ""))
-    examples = ["Which country outside the UK generated the most revenue in 2011?",
-                "How many units of the white hanging heart tea light holder were sold, and what is its 8-week forecast?",
-                "If we cut the regency cake stand price by 10%, what happens to 8-week revenue?",
-                "What share of customers are in the Lost segment, and what is their median recency?"]
+    examples = ["Which state generated the most net revenue, and what share of it was Amazon-fulfilled?",
+                "How many units of the best-selling blue kurta set were sold, and what is its 14-day forecast?",
+                "If we cut the price of the best-selling blue dress by 10%, what happens to 14-day revenue?",
+                "Which Metro hub city has the highest cancellation rate?"]
     choice = st.selectbox("Example questions", ["(type your own)"] + examples)
     q = st.text_input("Question", value="" if choice == "(type your own)" else choice)
     if st.button("Ask", type="primary", disabled=not (has_key and q.strip())):
@@ -96,75 +120,88 @@ with tab_agent:
         st.caption(f"{r.seconds:.1f}s · {r.llm_calls} LLM calls · {len(r.steps)} tool calls")
         for i, s in enumerate(r.steps, 1):
             with st.expander(f"{i}. {s.tool} {'✅' if s.ok else '⚠️'} ({s.seconds:.2f}s)"):
-                st.code(json.dumps(s.arguments, indent=2), language="json")
+                st.code(json.dumps(s.arguments, indent=2, ensure_ascii=False), language="json")
                 st.text(s.result_preview)
 
-# ---------------- Customers ----------------
-with tab_cust:
-    cust = load(str(CUSTOMERS))
+# ---------------- Markets ----------------
+with tab_mkt:
+    cities = load(str(CITIES))
     sm = metrics("segments_metrics.json")
-    st.markdown(f"Each customer is embedded from their purchase history (TF-IDF-weighted customer × product "
-                f"matrix → TruncatedSVD, {sm.get('embedding_dims', 16)} dims), combined with RFM features and "
-                f"clustered with K-Means into {sm.get('n_segments', 5)} segments.")
+    st.markdown(f"The report has no customer IDs, so markets are segmented by delivery city. Each city with "
+                f"{sm.get('min_orders_per_city', 30)}+ orders is embedded from what it buys (TF-IDF-weighted city × "
+                f"style matrix → TruncatedSVD, {sm.get('embedding_dims', 16)} dims), combined with market KPIs "
+                f"(orders, AOV, cancellation, returns, B2B, FBA share) and clustered with K-Means into "
+                f"{sm.get('n_segments', 5)} segments.")
     left, right = st.columns([3, 2])
     with left:
-        samp = cust.sample(min(3000, len(cust)), random_state=1)
-        fig = px.scatter(samp, x="x", y="y", color="segment_name", opacity=0.6, title="Customer embedding map (2-D projection)",
-                         hover_data={"customer_id": True, "monetary": ":.0f", "frequency": True, "x": False, "y": False})
+        fig = px.scatter(cities, x="x", y="y", color="segment_name", size=np.sqrt(cities["orders"]), opacity=0.7,
+                         title="City market map (2-D projection)",
+                         hover_data={"city": True, "state": True, "orders": True, "aov": ":.0f",
+                                     "cancel_rate": ":.1%", "x": False, "y": False})
         st.plotly_chart(fig, use_container_width=True)
     with right:
-        prof = cust.groupby("segment_name").agg(customers=("customer_id", "count"),
-                                                median_recency_days=("recency_days", "median"),
-                                                median_orders=("frequency", "median"),
-                                                total_revenue=("monetary", "sum")).sort_values("total_revenue", ascending=False)
-        prof["revenue_share"] = (prof["total_revenue"] / prof["total_revenue"].sum()).map("{:.0%}".format)
+        prof = cities.groupby("segment_name").agg(
+            cities=("city", "count"), orders=("orders", "sum"), revenue=("revenue", "sum"),
+            median_aov=("aov", "median"), cancel_rate=("cancel_rate", "median"), return_rate=("return_rate", "median"),
+        ).sort_values("revenue", ascending=False)
+        prof["revenue_share"] = (prof["revenue"] / prof["revenue"].sum()).map("{:.0%}".format)
+        for c in ["cancel_rate", "return_rate"]:
+            prof[c] = prof[c].map("{:.1%}".format)
+        prof["revenue"] = prof["revenue"].map(inr)
+        prof["median_aov"] = prof["median_aov"].map("₹{:,.0f}".format)
         st.dataframe(prof, use_container_width=True)
-    coh = load(str(COHORTS))
-    piv = coh[coh["age"] <= 12].pivot(index="cohort", columns="age", values="retention")
-    fig = px.imshow(piv, aspect="auto", color_continuous_scale="YlOrBr", title="Monthly cohort retention",
-                    labels={"x": "Months since first purchase", "y": "Cohort", "color": "Retention"})
+    mix = sql("SELECT state, category, SUM(revenue) AS revenue FROM transactions WHERE state IN "
+              "(SELECT state FROM transactions WHERE state IS NOT NULL GROUP BY 1 ORDER BY SUM(revenue) DESC LIMIT 12) "
+              "GROUP BY 1, 2")
+    piv = mix.pivot(index="state", columns="category", values="revenue").fillna(0)
+    piv = piv.div(piv.sum(axis=1), axis=0)
+    fig = px.imshow(piv, aspect="auto", color_continuous_scale="YlOrBr", title="Category mix by state (share of net revenue)",
+                    labels={"x": "Category", "y": "State", "color": "Share"})
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- Forecasts ----------------
 with tab_fc:
     fm = metrics("forecast_metrics.json")
-    weekly, fc = load(str(WEEKLY)), load(str(FORECASTS))
-    names = products.set_index("stock_code")["description"]
-    codes = [c for c in products["stock_code"] if c in set(fc["stock_code"])]  # best sellers first
-    code = st.selectbox("Product", codes, format_func=lambda c: f"{c} · {names.get(c, '')}")
-    h = weekly[weekly["stock_code"] == code]
-    f = fc[fc["stock_code"] == code]
+    daily_d, fc = load(str(DAILY)), load(str(FORECASTS))
+    styles = [c for c in products["style"] if c in set(fc["style"])]  # best sellers first
+    style = st.selectbox("Style", styles, format_func=lambda c: f"{c} · {names.get(c, '')}")
+    h = daily_d[daily_d["style"] == style]
+    f = fc[fc["style"] == style]
     fig = go.Figure()
-    fig.add_scatter(x=h["week"], y=h["quantity"], name="Actual weekly units", line=dict(color="#555"))
-    fig.add_scatter(x=f["week"], y=f["forecast"], name=f"Forecast ({f['model'].iloc[0]})", line=dict(color=GOLD, width=3))
-    fig.update_layout(title="Weekly demand and 8-week forecast", height=420)
+    fig.add_scatter(x=h["day"], y=h["quantity"], name="Actual daily units", line=dict(color="#555"))
+    fig.add_scatter(x=f["day"], y=f["forecast"], name=f"Forecast ({f['model'].iloc[0]})", line=dict(color=GOLD, width=3))
+    fig.update_layout(title=f"Daily demand and {HORIZON_DAYS}-day forecast", height=420)
     st.plotly_chart(fig, use_container_width=True)
     if fm:
-        st.markdown(f"**Backtest** on the last {fm['holdout_weeks']} weeks for {fm['products_forecast']} top products "
+        st.markdown(f"**Backtest** on the last {fm['holdout_days']} days for the top {fm['styles_forecast']} styles "
                     f"(model chosen on an earlier validation window). Volume-weighted WAPE, lower is better:")
         st.dataframe(pd.DataFrame({"test WAPE": fm["test_wape"]}).T, use_container_width=True)
         st.caption(f"Chosen model: {fm['chosen_model']}, "
-                   f"{fm['test_wape_improvement_vs_seasonal_naive']:.0%} lower error than the seasonal-naive baseline.")
+                   f"{fm['test_wape_improvement_vs_seasonal_naive']:.0%} lower error than the seasonal-naive "
+                   f"(same weekday last week) baseline. Only {fm['history_days']} days of history, so Holt-Winters "
+                   f"has little to learn from.")
 
 # ---------------- Pricing ----------------
 with tab_price:
     el = load(str(ELASTICITY))
-    rel = el[el["reliable"]].sort_values("forecast_units_8w", ascending=False)
-    st.markdown("Counterfactual pricing: what happens to the next 8 weeks of revenue if the price changes? "
-                "Elasticity is estimated per product from list-price variation (log-log regression with "
-                "month controls). It is observational, not from price experiments, so treat results as directional.")
-    code = st.selectbox("Product (reliable elasticity only)", rel["stock_code"],
-                        format_func=lambda c: f"{c} · {names.get(c, '')}", key="price_code")
-    r = rel.set_index("stock_code").loc[code]
+    rel = el[el["reliable"]].sort_values("forecast_units_14d", ascending=False)
+    st.markdown(f"Counterfactual pricing: what happens to the next {HORIZON_DAYS} days of revenue if the price changes? "
+                "Elasticity is estimated per style from day-to-day changes in its Amazon selling price (log-log "
+                "regression with day-of-week and trend controls). It is observational, not from price experiments, and "
+                "price changes often coincide with Amazon deals, so treat results as directional.")
+    style = st.selectbox("Style (reliable elasticity only)", rel["style"],
+                         format_func=lambda c: f"{c} · {names.get(c, '')}", key="price_style")
+    r = rel.set_index("style").loc[style]
     c1, c2, c3 = st.columns(3)
     c1.metric("Elasticity", f"{r['elasticity']:.2f}", help=f"95% CI {r['ci_low']:.2f} to {r['ci_high']:.2f}")
-    c2.metric("Current list price", f"£{r['base_price']:.2f}")
-    c3.metric("Forecast units (8w)", f"{r['forecast_units_8w']:,.0f}")
+    c2.metric("Current selling price", f"₹{r['base_price']:,.0f}",
+              help=f"Observed range ₹{r['min_price']:,.0f} to ₹{r['max_price']:,.0f}")
+    c3.metric(f"Forecast units ({HORIZON_DAYS}d)", f"{r['forecast_units_14d']:,.0f}")
     grid = np.linspace(-0.15, 0.15, 31)  # constant-elasticity models are unreliable far from observed prices
     curve = pd.DataFrame([{"pct": p * 100,
-                           "revenue": simulate(r["forecast_units_8w"], r["base_price"], r["elasticity"], p)["revenue"],
-                           "lo": simulate(r["forecast_units_8w"], r["base_price"], r["ci_high"], p)["revenue"],
-                           "hi": simulate(r["forecast_units_8w"], r["base_price"], r["ci_low"], p)["revenue"]}
+                           "revenue": simulate(r["forecast_units_14d"], r["base_price"], r["elasticity"], p)["revenue"],
+                           "lo": simulate(r["forecast_units_14d"], r["base_price"], r["ci_high"], p)["revenue"],
+                           "hi": simulate(r["forecast_units_14d"], r["base_price"], r["ci_low"], p)["revenue"]}
                           for p in grid])
     curve[["lo", "hi"]] = np.sort(curve[["lo", "hi"]].to_numpy(), axis=1)
     fig = go.Figure()
@@ -172,8 +209,8 @@ with tab_price:
     fig.add_scatter(x=curve["pct"], y=curve["lo"], fill="tonexty", line=dict(width=0), name="Elasticity 95% CI",
                     fillcolor="rgba(201,151,0,0.2)")
     fig.add_scatter(x=curve["pct"], y=curve["revenue"], name="Expected revenue", line=dict(color=GOLD, width=3))
-    fig.update_layout(title="8-week revenue vs price change", xaxis_title="Price change (%)",
-                      yaxis_title="Revenue (GBP)", height=420)
+    fig.update_layout(title=f"{HORIZON_DAYS}-day revenue vs price change", xaxis_title="Price change (%)",
+                      yaxis_title="Revenue (INR)", height=420)
     st.plotly_chart(fig, use_container_width=True)
     st.subheader("Multi-agent pricing review")
     st.caption("Analyst (SQL history) → Forecaster → Pricing strategist (scenarios) → Critic (checks evidence, final call).")
@@ -182,7 +219,7 @@ with tab_price:
     if st.button("Run multi-agent review", disabled=not has_key):
         import multi_agent
         with st.spinner("Agents are working..."):
-            run = multi_agent.run(code)
+            run = multi_agent.run(style)
         for role in ["analyst", "forecaster", "strategist"]:
             with st.expander(role.title()):
                 st.markdown(run.outputs[role])
@@ -210,18 +247,18 @@ with tab_eval:
             st.dataframe(det, hide_index=True, use_container_width=True)
     if "retrieval" in ev:
         rr = ev["retrieval"]
-        st.markdown(f"**Product retrieval** on {rr['queries']} noisy queries (word dropped, shuffled, typo): "
+        st.markdown(f"**Product retrieval** on {rr['queries']} noisy queries (shuffled words, one typo): "
                     f"recall@1 {rr['recall_at_1']:.0%}, recall@5 {rr['recall_at_5']:.0%}, MRR {rr['mrr']:.2f}.")
     fm, sm, pm = metrics("forecast_metrics.json"), metrics("segments_metrics.json"), metrics("pricing_metrics.json")
     if fm:
         st.markdown(f"**Forecasting:** {fm['chosen_model']} test WAPE {fm['test_wape'][fm['chosen_model']]:.3f} vs "
                     f"seasonal-naive {fm['test_wape']['seasonal_naive']:.3f}.")
     if sm:
-        st.markdown(f"**Segmentation:** {sm['n_customers']:,} customers, silhouette {sm['silhouette']}, "
-                    f"average month-3 cohort retention {sm['avg_month3_retention']:.0%}.")
+        st.markdown(f"**Market segmentation:** {sm['n_cities']} cities covering {sm['order_coverage']:.0%} of orders, "
+                    f"silhouette {sm['silhouette']}.")
     if pm:
-        st.markdown(f"**Pricing:** {pm['reliable_estimates']} of {pm['products_with_estimates']} products have reliable "
+        st.markdown(f"**Pricing:** {pm['reliable_estimates']} of {pm['styles_with_estimates']} styles have reliable "
                     f"elasticity estimates (p < 0.05); median {pm['median_reliable_elasticity']}.")
-    st.markdown("**Limitations:** historical data only (2009 to 2011); elasticities are observational; "
-                "the agent uses a hosted open-weights LLM and can make mistakes, so every number is traceable "
-                "to a tool call shown in the trace.")
+    st.markdown("**Limitations:** three months of 2022 data from one seller; no customer IDs, so no customer-level "
+                "retention; elasticities are observational; the agent uses a hosted open-weights LLM and can make "
+                "mistakes, so every number is traceable to a tool call shown in the trace.")

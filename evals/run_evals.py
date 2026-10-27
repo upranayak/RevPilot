@@ -30,10 +30,10 @@ def gold_value(item: dict):
     if "gold_sql" in item:
         return db.run_readonly(item["gold_sql"])["rows"][0][0]
     if item["gold_fn"] == "pr_cut10":
-        code = db.run_readonly("SELECT stock_code FROM elasticity WHERE reliable ORDER BY forecast_units_8w DESC LIMIT 1")["rows"][0][0]
-        return tools.simulate_price_change(code, [-0.1])["scenarios"][0]["revenue_8w"]
-    if item["gold_fn"] == "pr_84879_up5":
-        return tools.simulate_price_change("84879", [0.05])["scenarios"][0]["revenue_8w"]
+        code = db.run_readonly("SELECT style FROM elasticity WHERE reliable ORDER BY forecast_units_14d DESC LIMIT 1")["rows"][0][0]
+        return tools.simulate_price_change(code, [-0.1])["scenarios"][0]["revenue_14d_inr"]
+    if item["gold_fn"] == "pr_j0230_up5":
+        return tools.simulate_price_change("J0230", [0.05])["scenarios"][0]["revenue_14d_inr"]
     raise ValueError(item["gold_fn"])
 
 
@@ -68,22 +68,22 @@ def pct(xs: list[float], q: float) -> float:
 def eval_retrieval(n: int = 300, seed: int = 7) -> dict:
     """Noisy queries: drop one word, shuffle the rest, lowercase, add a typo."""
     rng = random.Random(seed)
-    rows = db.run_readonly("SELECT stock_code, description FROM products WHERE length(description) > 12 "
+    rows = db.run_readonly("SELECT style, description FROM products WHERE length(description) > 8 "
                            "ORDER BY revenue DESC LIMIT 1000", max_rows=1000)["rows"]
     sample = rng.sample(rows, min(n, len(rows)))
     hits1 = hits5 = 0
     rr = []
     for code, desc in sample:
         words = desc.lower().split()
-        if len(words) > 2:
+        if len(words) > 3:  # descriptions are short (colour + type), so only drop a word from longer ones
             words.pop(rng.randrange(len(words)))
         rng.shuffle(words)
         q = " ".join(words)
         if len(q) > 5:
             i = rng.randrange(1, len(q) - 1)
             q = q[:i] + q[i + 1:]  # delete one character
-        res = [r["stock_code"] for r in tools.search_products(q, k=5)["results"]]
-        # Several stock codes share a description; count a hit if the description matches.
+        res = [r["style"] for r in tools.search_products(q, k=5)["results"]]
+        # Several styles share a description; count a hit if the description matches.
         descs = [tools._index().products.loc[c, "description"] for c in res]
         ranks = [i for i, d in enumerate(descs) if d == desc]
         hits1 += bool(ranks and ranks[0] == 0)

@@ -1,9 +1,9 @@
 {
   "retrieval": {
     "queries": 300,
-    "recall_at_1": 0.493,
-    "recall_at_5": 0.793,
-    "mrr": 0.607
+    "recall_at_1": 0.74,
+    "recall_at_5": 0.957,
+    "mrr": 0.826
   },
   "agent": {
     "model": "openai/gpt-oss-120b",
@@ -11,20 +11,20 @@
     "answer_accuracy": 0.967,
     "accuracy_by_category": {
       "sql": 1.0,
-      "rag": 1.0,
+      "rag": 0.833,
       "fc": 1.0,
-      "pr": 0.833
+      "pr": 1.0
     },
-    "routing_f1": 0.956,
+    "routing_f1": 0.989,
     "tool_call_reliability": 1.0,
-    "latency_p50_s": 3.65,
-    "latency_p95_s": 11.27,
+    "latency_p50_s": 8.04,
+    "latency_p95_s": 23.23,
     "details": [
       {
         "id": "sql01",
-        "question": "What was total net revenue in 2010 (excluding cancellations)?",
-        "gold": 9373705.49,
-        "answer": "Total net revenue in 2010 (excluding cancellations) was \u00a39,373,705.49.",
+        "question": "What was total net revenue in INR across the whole period?",
+        "gold": 71670759.0,
+        "answer": "Total net revenue was \u20b971,670,759.00.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -35,15 +35,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 4.532,
+        "seconds": 4.188,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql02",
-        "question": "How many unique customers placed orders in 2011?",
-        "gold": 4214,
-        "answer": "4214 unique customers placed orders in 2011.",
+        "question": "How many orders were placed in May 2022, including cancelled ones?",
+        "gold": 39221,
+        "answer": "There were **39,221 orders** placed in May\u202f2022, including cancelled ones.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -54,15 +54,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 1.567,
+        "seconds": 3.819,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql03",
-        "question": "Which country outside the United Kingdom generated the most revenue? Give the country.",
-        "gold": "EIRE",
-        "answer": "EIRE",
+        "question": "Which state generated the most net revenue? Give the state.",
+        "gold": "Maharashtra",
+        "answer": "Maharashtra generated the most net revenue.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -73,15 +73,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 4.794,
+        "seconds": 1.696,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql04",
-        "question": "Which month (YYYY-MM) had the highest revenue?",
-        "gold": "2011-11",
-        "answer": "2011\u201111 had the highest revenue, totalling\u202f\u00a31,452,112.69.",
+        "question": "Which month (YYYY-MM) had the highest net revenue?",
+        "gold": "2022-04",
+        "answer": "2022\u201104 had the highest net revenue, totaling\u202f\u20b926,234,520.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -92,15 +92,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 2.098,
+        "seconds": 1.336,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql05",
-        "question": "What is the average order value in GBP across all non-cancelled invoices?",
-        "gold": 497.08,
-        "answer": "The average order value across all non\u2011cancelled invoices is \u00a3497.08.",
+        "question": "What is the average order value in INR across non-cancelled orders?",
+        "gold": 694.53,
+        "answer": "The average order value for non\u2011cancelled orders is \u20b9\u202f694.53.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -111,15 +111,15 @@
         "routing_f1": 1.0,
         "tool_calls": 2,
         "tool_calls_ok": 2,
-        "seconds": 2.187,
+        "seconds": 8.041,
         "llm_calls": 3,
         "error": null
       },
       {
         "id": "sql06",
-        "question": "What share of invoices were cancellations? Answer as a percentage.",
-        "gold": 15.78,
-        "answer": "15.78% of invoices were cancellations.",
+        "question": "What share of order lines were cancelled? Answer as a percentage.",
+        "gold": 14.21,
+        "answer": "14.21%14.21%",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -130,15 +130,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 2.305,
+        "seconds": 15.695,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql07",
-        "question": "How many customers are in the Champions segment?",
-        "gold": 504,
-        "answer": "504 customers are in the Champions segment.",
+        "question": "Which product category earned the most net revenue?",
+        "gold": "Set",
+        "answer": "The Set category earned the most net revenue, totaling \u20b935,729,571.00.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -149,15 +149,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 1.234,
+        "seconds": 17.371,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql08",
-        "question": "What is the median recency in days of customers in the Lost segment?",
-        "gold": 414.0,
-        "answer": "The median recency for Lost\u2011segment customers is **414 days**.",
+        "question": "What was net revenue from Karnataka in INR?",
+        "gold": 9649981.0,
+        "answer": "The net revenue from Karnataka was \u20b99,649,981.00.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -168,15 +168,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 3.372,
+        "seconds": 7.064,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql09",
-        "question": "Which stock code sold the most units overall?",
-        "gold": "84077",
-        "answer": "The stock code with the highest total units sold is **84077**, with **106,139 units** sold.",
+        "question": "What percentage of net revenue came from Amazon-fulfilled (FBA) orders?",
+        "gold": 70.59,
+        "answer": "\u2248\u202f70.59\u202f% of net revenue was generated by Amazon\u2011fulfilled (FBA) orders.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -187,15 +187,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 1.542,
+        "seconds": 4.65,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql10",
-        "question": "How much revenue did the top 10 customers by spend generate in total?",
-        "gold": 2755267.68,
-        "answer": "The top\u202f10 customers by spend generated\u202f\u00a32,755,267.68 in total revenue.",
+        "question": "Which city placed the most orders?",
+        "gold": "Bengaluru",
+        "answer": "Bengaluru, Karnataka placed the most orders with 11,126 orders.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -206,15 +206,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 3.654,
+        "seconds": 16.411,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql11",
-        "question": "How many distinct products were sold in December 2010?",
-        "gold": 2719,
-        "answer": "2719 distinct products were sold in December\u202f2010.",
+        "question": "What share of Kurta order lines were returned or are returning to the seller? Answer as a percentage.",
+        "gold": 1.5,
+        "answer": "1.50% of Kurta order lines were returned or are returning to the seller.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -225,15 +225,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 1.065,
+        "seconds": 26.353,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql12",
-        "question": "What was revenue from Germany in 2011?",
-        "gold": 192137.41,
-        "answer": "Revenue from Germany in 2011 was \u00a3192,137.41.",
+        "question": "How many cities are in the Metro hubs market segment?",
+        "gold": 65,
+        "answer": "There are 65 cities in the Metro hubs market segment.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -244,15 +244,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 2.692,
+        "seconds": 2.397,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql13",
-        "question": "On which day of the week (name) is revenue highest?",
-        "gold": "Thursday",
-        "answer": "Thursday \u2013\u202f\u00a34,010,016.71.",
+        "question": "How much net revenue in INR came from B2B orders?",
+        "gold": 559400.0,
+        "answer": "Net revenue from B2B orders was \u20b9559,400.00.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -263,15 +263,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 1.751,
+        "seconds": 7.033,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql14",
-        "question": "How many customers bought only once (one invoice)?",
-        "gold": 1618,
-        "answer": "1618 customers made a single purchase (one invoice) during the period.",
+        "question": "On which day of the week (name) is net revenue highest?",
+        "gold": "Sunday",
+        "answer": "Sunday has the highest net revenue,\u202f\u20b910,984,836.00.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -282,15 +282,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 1.729,
+        "seconds": 12.925,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "sql15",
-        "question": "What was the year-over-year revenue growth from 2010 to 2011 for January to November, in percent?",
-        "gold": 3.01,
-        "answer": "Year\u2011over\u2011year revenue grew by **3.01\u202f%** from 2010 to 2011 for the period January\u202f\u2013\u202fNovember.",
+        "question": "What was the percentage change in net revenue from May 2022 to June 2022?",
+        "gold": -10.7,
+        "answer": "Net revenue fell by\u202f\u2248\u202f\u201110.70% from May\u202f2022 to June\u202f2022.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -301,15 +301,15 @@
         "routing_f1": 1.0,
         "tool_calls": 2,
         "tool_calls_ok": 2,
-        "seconds": 6.382,
+        "seconds": 9.214,
         "llm_calls": 3,
         "error": null
       },
       {
         "id": "rag01",
-        "question": "What is the stock code of the three-tier regency cake stand?",
-        "gold": "22423",
-        "answer": "The stock code is **22423**.",
+        "question": "What is the style code of the best-selling blue kurta set?",
+        "gold": "J0230",
+        "answer": "The best\u2011selling blue kurta set is style **J0230**.",
         "correct": true,
         "tools_expected": [
           "search_products"
@@ -320,36 +320,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 6.761,
+        "seconds": 10.217,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "rag02",
-        "question": "How many units of the white hanging heart tea light holder were sold in total?",
-        "gold": 94719,
-        "answer": "The white hanging heart tea light holder (stock code\u202f85123A) sold a total of **94,719 units**.",
-        "correct": true,
-        "tools_expected": [
-          "run_sql",
-          "search_products"
-        ],
-        "tools_used": [
-          "run_sql",
-          "search_products"
-        ],
-        "routing_f1": 1.0,
-        "tool_calls": 2,
-        "tool_calls_ok": 2,
-        "seconds": 9.75,
-        "llm_calls": 3,
-        "error": null
-      },
-      {
-        "id": "rag03",
-        "question": "What is the median price of the jumbo red retro spot bag?",
-        "gold": 1.95,
-        "answer": "The median price of the\u202fJUMBO\u202fBAG\u202fRED\u202fRETROSPOT is\u202f\u00a31.95.",
+        "question": "How many units of the best-selling mustard top were sold?",
+        "gold": 723,
+        "answer": "The best\u2011selling mustard top sold **723\u202funits**.",
         "correct": true,
         "tools_expected": [
           "search_products"
@@ -360,16 +339,73 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 3.834,
+        "seconds": 7.065,
+        "llm_calls": 2,
+        "error": null
+      },
+      {
+        "id": "rag03",
+        "question": "What is the median selling price in INR of the best-selling navy blue dress?",
+        "gold": 842.0,
+        "answer": "The median selling price of the best\u2011selling navy\u2011blue dress (style\u202fJ0343) is\u202f\u20b9842.00.",
+        "correct": true,
+        "tools_expected": [
+          "search_products"
+        ],
+        "tools_used": [
+          "search_products"
+        ],
+        "routing_f1": 1.0,
+        "tool_calls": 1,
+        "tool_calls_ok": 1,
+        "seconds": 10.924,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "rag04",
-        "question": "What total revenue did the party bunting product earn?",
-        "gold": 148318.28,
-        "answer": "The party bunting product generated \u00a3148,318.28 in total revenue.",
+        "question": "How much net revenue did the best-selling off-white kurta set earn?",
+        "gold": 1190796.0,
+        "answer": "The off\u2011white kurta set (style\u202fSET268) generated net revenue of **\u20b91,190,796.00**.",
         "correct": true,
+        "tools_expected": [
+          "search_products"
+        ],
+        "tools_used": [
+          "search_products"
+        ],
+        "routing_f1": 1.0,
+        "tool_calls": 1,
+        "tool_calls_ok": 1,
+        "seconds": 11.541,
+        "llm_calls": 2,
+        "error": null
+      },
+      {
+        "id": "rag05",
+        "question": "Find the top-selling pink kurta and give its style code.",
+        "gold": "JNE3405",
+        "answer": "The top\u2011selling pink\u202fkurta is style **JNE3405**.",
+        "correct": true,
+        "tools_expected": [
+          "search_products"
+        ],
+        "tools_used": [
+          "search_products"
+        ],
+        "routing_f1": 1.0,
+        "tool_calls": 1,
+        "tool_calls_ok": 1,
+        "seconds": 11.586,
+        "llm_calls": 2,
+        "error": null
+      },
+      {
+        "id": "rag06",
+        "question": "How many orders included the best-selling green kurta?",
+        "gold": 3567,
+        "answer": "4205 orders included the best\u2011selling green kurta.",
+        "correct": false,
         "tools_expected": [
           "search_products"
         ],
@@ -380,74 +416,34 @@
         "routing_f1": 0.667,
         "tool_calls": 2,
         "tool_calls_ok": 2,
-        "seconds": 13.099,
-        "llm_calls": 3,
-        "error": null
-      },
-      {
-        "id": "rag05",
-        "question": "Find the assorted colour bird ornament and give its stock code.",
-        "gold": "84879",
-        "answer": "Stock code: 84879",
-        "correct": true,
-        "tools_expected": [
-          "search_products"
-        ],
-        "tools_used": [
-          "search_products"
-        ],
-        "routing_f1": 1.0,
-        "tool_calls": 1,
-        "tool_calls_ok": 1,
-        "seconds": 6.186,
-        "llm_calls": 2,
-        "error": null
-      },
-      {
-        "id": "rag06",
-        "question": "How many orders included the pack of 72 retro spot cake cases?",
-        "gold": 3118,
-        "answer": "3118 orders included the pack of 72 retro spot cake cases.",
-        "correct": true,
-        "tools_expected": [
-          "run_sql",
-          "search_products"
-        ],
-        "tools_used": [
-          "run_sql",
-          "search_products"
-        ],
-        "routing_f1": 1.0,
-        "tool_calls": 2,
-        "tool_calls_ok": 2,
-        "seconds": 11.271,
+        "seconds": 23.232,
         "llm_calls": 3,
         "error": null
       },
       {
         "id": "fc01",
-        "question": "What is the total forecast demand in units for stock code 85123A over the next 8 weeks?",
-        "gold": 5373.2,
-        "answer": "The total forecast demand for stock code\u202f85123A over the next\u202f8\u202fweeks is\u202f5,373.22\u202funits.",
+        "question": "What is the total forecast demand in units for style J0230 over the next 14 days?",
+        "gold": 182.0,
+        "answer": "The forecast demand for style\u202fJ0230 over the next\u202f14\u202fdays is\u202f182\u202funits.",
         "correct": true,
         "tools_expected": [
           "get_forecast"
         ],
         "tools_used": [
-          "run_sql"
+          "get_forecast"
         ],
-        "routing_f1": 0.0,
+        "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 5.104,
+        "seconds": 7.441,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "fc02",
-        "question": "Forecast the next 8 weeks of demand for the jumbo red retro spot bag. Total units?",
-        "gold": 4297.9,
-        "answer": "The forecast for the Jumbo Red Retro Spot Bag (stock\u202f85099B) predicts a total of **4,298 units** over the next eight weeks.",
+        "question": "Forecast the next 14 days of demand for the best-selling mustard kurta set. Total units?",
+        "gold": 96.0,
+        "answer": "The forecast for the best\u2011selling mustard kurta set (style\u202fJ0003) predicts a total of\u202f\u20b996\u202funits over the next 14\u202fdays.",
         "correct": true,
         "tools_expected": [
           "get_forecast",
@@ -460,15 +456,15 @@
         "routing_f1": 1.0,
         "tool_calls": 2,
         "tool_calls_ok": 2,
-        "seconds": 8.558,
+        "seconds": 13.085,
         "llm_calls": 3,
         "error": null
       },
       {
         "id": "fc03",
-        "question": "What is the forecast for stock code 22423 in its first forecast week?",
-        "gold": 233.0,
-        "answer": "The forecast for stock code\u202f22423 in its first forecast week (2011\u201112\u201111) is\u202f233\u202funits.",
+        "question": "What is the forecast for style JNE3797 on its first forecast day?",
+        "gold": 67.9,
+        "answer": "The forecast for style\u202fJNE3797 on its first forecast day (2022\u201106\u201129) is\u202f\u2248\u202f67.9\u202funits.",
         "correct": true,
         "tools_expected": [
           "get_forecast"
@@ -479,34 +475,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 10.584,
+        "seconds": 9.993,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "pr01",
-        "question": "What is the estimated price elasticity of the product with the most reliable estimate (lowest p-value)? Give the elasticity.",
-        "gold": -3.14,
-        "answer": "The product with the most reliable elasticity estimate (lowest p\u2011value) has an estimated price elasticity of **\u20117.33**.",
-        "correct": false,
-        "tools_expected": [
-          "run_sql"
-        ],
-        "tools_used": [
-          "run_sql"
-        ],
-        "routing_f1": 1.0,
-        "tool_calls": 1,
-        "tool_calls_ok": 1,
-        "seconds": 2.832,
-        "llm_calls": 2,
-        "error": null
-      },
-      {
-        "id": "pr02",
-        "question": "How many products have a reliable price elasticity estimate?",
-        "gold": 56,
-        "answer": "56 products have a reliable price elasticity estimate.",
+        "question": "What is the estimated price elasticity of the style with the most reliable estimate (lowest p-value)? Give the elasticity.",
+        "gold": -5.3,
+        "answer": "The style with the most reliable estimate (lowest p\u2011value) has an estimated price elasticity of approximately\u202f\u20115.30.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -517,15 +494,34 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 3.076,
+        "seconds": 7.587,
+        "llm_calls": 2,
+        "error": null
+      },
+      {
+        "id": "pr02",
+        "question": "How many styles have a reliable price elasticity estimate?",
+        "gold": 18,
+        "answer": "There are **18** styles with a reliable price elasticity estimate.",
+        "correct": true,
+        "tools_expected": [
+          "run_sql"
+        ],
+        "tools_used": [
+          "run_sql"
+        ],
+        "routing_f1": 1.0,
+        "tool_calls": 1,
+        "tool_calls_ok": 1,
+        "seconds": 4.432,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "pr03",
-        "question": "For the reliable-elasticity product with the highest 8-week forecast units, what 8-week revenue does a 10% price cut project?",
-        "gold": 85211.2,
-        "answer": "A 10% price cut for the reliable\u2011elasticity product with the highest 8\u2011week forecast (stock\u202f23084, \u201cRABBIT NIGHT LIGHT\u201d) projects 8\u2011week revenue of **\u00a385,211.20**.",
+        "question": "For the reliable-elasticity style with the highest 14-day forecast units, what 14-day revenue in INR does a 10% price cut project?",
+        "gold": 266489.68,
+        "answer": "A 10% price cut for style\u202fJ0230 projects 14\u2011day revenue of approximately\u202f\u20b9266,489.68.",
         "correct": true,
         "tools_expected": [
           "run_sql",
@@ -538,15 +534,15 @@
         "routing_f1": 1.0,
         "tool_calls": 2,
         "tool_calls_ok": 2,
-        "seconds": 8.118,
+        "seconds": 15.384,
         "llm_calls": 3,
         "error": null
       },
       {
         "id": "pr04",
-        "question": "If stock code 84879's price rises 5%, what is the projected 8-week revenue?",
-        "gold": 3120.2,
-        "answer": "The 5% price increase for stock code\u202f84879 is projected to generate about\u202f\u00a33,120.20 in revenue over the next 8\u202fweeks.",
+        "question": "If style J0230's price rises 5%, what is the projected 14-day revenue in INR?",
+        "gold": 190252.21,
+        "answer": "The projected 14\u2011day revenue for style\u202fJ0230 after a 5\u202f% price increase is \u20b9190,252.21.",
         "correct": true,
         "tools_expected": [
           "simulate_price_change"
@@ -557,15 +553,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 3.692,
+        "seconds": 12.546,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "pr05",
-        "question": "Which reliable-elasticity product is most price sensitive (most negative elasticity)? Give the stock code.",
-        "gold": "21754",
-        "answer": "The most price\u2011sensitive reliable\u2011elasticity product is stock code **21754**.",
+        "question": "Which reliable-elasticity style is most price sensitive (most negative elasticity)? Give the style code.",
+        "gold": "SET319",
+        "answer": "SET319",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -576,15 +572,15 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 2.822,
+        "seconds": 2.282,
         "llm_calls": 2,
         "error": null
       },
       {
         "id": "pr06",
         "question": "What is the median elasticity across reliable estimates?",
-        "gold": -2.03,
-        "answer": "The median elasticity across reliable estimates is **\u20112.03**.",
+        "gold": -2.75,
+        "answer": "The median elasticity across reliable estimates is\u202f-2.75.",
         "correct": true,
         "tools_expected": [
           "run_sql"
@@ -595,7 +591,7 @@
         "routing_f1": 1.0,
         "tool_calls": 1,
         "tool_calls_ok": 1,
-        "seconds": 5.829,
+        "seconds": 2.126,
         "llm_calls": 2,
         "error": null
       }

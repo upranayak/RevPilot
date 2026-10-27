@@ -5,7 +5,7 @@ from functools import lru_cache
 import pandas as pd
 
 import db
-from config import ELASTICITY, FORECASTS
+from config import ELASTICITY, FORECASTS, HORIZON_DAYS
 from pricing import simulate
 from rag import ProductIndex
 
@@ -17,7 +17,7 @@ def _index() -> ProductIndex:
 
 @lru_cache(maxsize=1)
 def _elasticity() -> pd.DataFrame:
-    return pd.read_parquet(ELASTICITY).set_index("stock_code")
+    return pd.read_parquet(ELASTICITY).set_index("style")
 
 
 @lru_cache(maxsize=1)
@@ -33,39 +33,42 @@ def search_products(query: str, k: int = 5) -> dict:
     return {"results": _index().search(query, k=min(int(k), 10))}
 
 
-def get_forecast(stock_code: str) -> dict:
+def get_forecast(style: str) -> dict:
     f = _forecasts()
-    g = f[f["stock_code"] == stock_code.upper()]
+    code = style.strip().upper()
+    g = f[f["style"] == code]
     if g.empty:
-        return {"error": f"No forecast for {stock_code}. Forecasts exist for the top 100 products by revenue."}
-    return {"stock_code": stock_code.upper(), "model": g["model"].iloc[0],
-            "weeks": [{"week": str(w.date()), "units": round(float(u), 1)} for w, u in zip(g["week"], g["forecast"])],
-            "total_units_8w": round(float(g["forecast"].sum()), 1)}
+        return {"error": f"No forecast for {style}. Forecasts exist for the top 100 styles by revenue."}
+    return {"style": code, "model": g["model"].iloc[0],
+            "days": [{"day": str(d.date()), "units": round(float(u), 1)} for d, u in zip(g["day"], g["forecast"])],
+            f"total_units_{HORIZON_DAYS}d": round(float(g["forecast"].sum()), 1)}
 
 
-def simulate_price_change(stock_code: str, pct_changes: list[float]) -> dict:
+def simulate_price_change(style: str, pct_changes: list[float]) -> dict:
     el = _elasticity()
-    code = stock_code.upper()
+    code = style.strip().upper()
     if code not in el.index:
-        return {"error": f"No elasticity estimate for {code} (needs 30+ weeks of sales with price variation)."}
+        return {"error": f"No elasticity estimate for {code} (needs 30+ sale days with price variation; top 100 styles only)."}
     r = el.loc[code]
-    base = simulate(r["forecast_units_8w"], r["base_price"], r["elasticity"], 0.0)
+    units = r["forecast_units_14d"]
+    base = simulate(units, r["base_price"], r["elasticity"], 0.0)
     scenarios = []
     for pct in pct_changes[:8]:
         pct = max(-0.5, min(0.5, float(pct)))
-        s = simulate(r["forecast_units_8w"], r["base_price"], r["elasticity"], pct)
-        lo = simulate(r["forecast_units_8w"], r["base_price"], r["ci_high"], pct)  # least elastic bound
-        hi = simulate(r["forecast_units_8w"], r["base_price"], r["ci_low"], pct)   # most elastic bound
-        scenarios.append({"pct_change": pct, "price": round(s["price"], 2), "units_8w": round(s["units"], 1),
-                          "revenue_8w": round(s["revenue"], 2),
-                          "revenue_delta_vs_base": round(s["revenue"] - base["revenue"], 2),
+        s = simulate(units, r["base_price"], r["elasticity"], pct)
+        lo = simulate(units, r["base_price"], r["ci_high"], pct)  # least elastic bound
+        hi = simulate(units, r["base_price"], r["ci_low"], pct)   # most elastic bound
+        scenarios.append({"pct_change": pct, "price_inr": round(s["price"], 2), "units_14d": round(s["units"], 1),
+                          "revenue_14d_inr": round(s["revenue"], 2),
+                          "revenue_delta_vs_base_inr": round(s["revenue"] - base["revenue"], 2),
                           "revenue_range_from_elasticity_ci": [round(min(lo["revenue"], hi["revenue"]), 2),
                                                                round(max(lo["revenue"], hi["revenue"]), 2)]})
-    return {"stock_code": code, "description": r["description"], "elasticity": round(float(r["elasticity"]), 2),
+    return {"style": code, "description": r["description"], "elasticity": round(float(r["elasticity"]), 2),
             "elasticity_ci": [round(float(r["ci_low"]), 2), round(float(r["ci_high"]), 2)],
             "p_value": round(float(r["p_value"]), 4), "reliable": bool(r["reliable"]),
-            "base_price": round(float(r["base_price"]), 2), "base_units_8w": round(float(r["forecast_units_8w"]), 1),
-            "base_revenue_8w": round(base["revenue"], 2), "scenarios": scenarios}
+            "observed_price_range_inr": [round(float(r["min_price"]), 2), round(float(r["max_price"]), 2)],
+            "base_price_inr": round(float(r["base_price"]), 2), "base_units_14d": round(float(units), 1),
+            "base_revenue_14d_inr": round(base["revenue"], 2), "scenarios": scenarios}
 
 
 REGISTRY = {"run_sql": run_sql, "search_products": search_products, "get_forecast": get_forecast,
@@ -74,28 +77,31 @@ REGISTRY = {"run_sql": run_sql, "search_products": search_products, "get_forecas
 SPECS = {
     "run_sql": {"type": "function", "function": {
         "name": "run_sql",
-        "description": "Run one read-only DuckDB SQL SELECT over the retail tables and return rows. "
-                       "Use for any numeric question about sales, revenue, customers, countries or segments.",
+        "description": "Run one read-only DuckDB SQL SELECT over the Amazon India sales tables and return rows. "
+                       "Use for any numeric question about sales, revenue, orders, states, cities, categories, "
+                       "cancellations, returns or market segments.",
         "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "A single SELECT or WITH query."}},
                        "required": ["query"]}}},
     "search_products": {"type": "function", "function": {
         "name": "search_products",
-        "description": "Semantic search over product descriptions. Use to find stock codes for products described in words.",
+        "description": "Semantic search over styles by colour and type (e.g. 'blue kurta set'), typo tolerant. Returns one "
+                       "result per description: its best-selling style code with units, orders, revenue and median price, "
+                       "plus how many styles share that description. Use to find the style of a product described in words.",
         "parameters": {"type": "object", "properties": {"query": {"type": "string"},
                                                         "k": {"type": "integer", "description": "Results, max 10."}},
                        "required": ["query"]}}},
     "get_forecast": {"type": "function", "function": {
         "name": "get_forecast",
-        "description": "Get the next 8 weeks of forecast unit demand for a product stock code.",
-        "parameters": {"type": "object", "properties": {"stock_code": {"type": "string"}}, "required": ["stock_code"]}}},
+        "description": f"Get the next {HORIZON_DAYS} days of forecast unit demand for a style code.",
+        "parameters": {"type": "object", "properties": {"style": {"type": "string"}}, "required": ["style"]}}},
     "simulate_price_change": {"type": "function", "function": {
         "name": "simulate_price_change",
-        "description": "Counterfactual: simulate 8-week units and revenue if a product's price changes by each "
-                       "fraction (e.g. -0.1 = 10% cut), using its estimated price elasticity.",
+        "description": f"Counterfactual: simulate {HORIZON_DAYS}-day units and revenue (INR) if a style's price changes "
+                       "by each fraction (e.g. -0.1 = 10% cut), using its estimated price elasticity.",
         "parameters": {"type": "object", "properties": {
-            "stock_code": {"type": "string"},
+            "style": {"type": "string"},
             "pct_changes": {"type": "array", "items": {"type": "number"}, "description": "Fractions between -0.5 and 0.5."}},
-            "required": ["stock_code", "pct_changes"]}}},
+            "required": ["style", "pct_changes"]}}},
 }
 
 
